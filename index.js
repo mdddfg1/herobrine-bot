@@ -6,7 +6,7 @@ const mineflayer = require('mineflayer');
 const ATERNOS_INVITE = process.env.ATERNOS_INVITE || 'https://add.aternos.org/SERAJ_ABDO2';
 
 // خادم وهمي لإبقاء موقع Render/Heroku شغالاً
-http.createServer((req, res) => res.end('Herobrine is online!')).listen(process.env.PORT || 3000);
+http.createServer((req, res) => res.end('Herobrine is online!')).listen(process.env.PORT || 52058);
 
 // إعدادات دخول البوت - غيّر المتغيرات البيئية أو استبدل القيم هنا
 const bot = mineflayer.createBot({
