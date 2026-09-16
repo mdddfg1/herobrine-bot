@@ -4,53 +4,54 @@ const bedrock = require('bedrock-protocol');
 // خادم وهمي لإبقاء الخدمة تعمل على Render
 http.createServer((req, res) => res.end('Bedrock Bot Active!')).listen(process.env.PORT || 3000);
 
-// إعدادات اتصال البوت بالسيرفر
 const botConfig = {
   host: 'SERAJ_ABDO2.aternos.me',
   port: 52058,
   username: 'Herobrine',
-  offline: false,       // يتوافق مع حماية شبكة Bedrock عبر حساب Microsoft
-  version: '1.26.45',   // إصدار بروتوكول البيدروك المتوافق
-  skipPing: true,       // منع قطع الاتصال أثناء فحص الاستجابة
-  onMsaCode: (data) => {
-    console.log('====================================================');
-    console.log('🔐 لتسجيل دخول البوت، افتح الرابط التالي:');
-    console.log(data.verification_uri);
-    console.log('🔑 وأدخل هذا الرمز:', data.user_code);
-    console.log('====================================================');
-  }
+  offline: false,
+  version: '1.26.45',
+  skipPing: true,
+  profilesFolder: './msa-cache' // حفظ ملفات التوثيق محلياً لمنع طلب الرمز مجدداً
 };
 
-// دالة التشغيل وإعادة الاتصال التلقائي
 function startBot() {
-  console.log('🔄 جاري الاتصال بالسيرفر...');
-  const client = bedrock.createClient(botConfig);
+  console.log('🔄 جاري بدء الاتصال والتحقق من حساب Microsoft...');
+  
+  let checkInterval = null;
 
-  // أحداث الاتصال والتفاعل
-  client.on('join', () => {
-    console.log('✅ دخل هيروبرين إلى سيرفر البيدروك بنجاح!');
-  });
+  const client = bedrock.createClient({
+    ...botConfig,
+    onMsaCode: (data) => {
+      console.log('====================================================');
+      console.log('🔐 افتح الرابط لتأكيد الدخول: ' + data.verification_uri);
+      console.log('🔑 أدخل الرمز التالي: ' + data.user_code);
+      console.log('====================================================');
 
-  client.on('text', (packet) => {
-    if (packet.message && packet.message.toLowerCase().includes('hello')) {
-      client.queue('text', {
-        type: 'chat',
-        needs_translation: false,
-        source_name: 'Herobrine',
-        message: 'I am always watching you...',
-        xuid: '',
-        platform_chat_id: ''
-      });
+      // طباعة رسالة كل 15 ثانية لتأكيد أن البوت يفحص ويرتقب دخولك
+      if (checkInterval) clearInterval(checkInterval);
+      checkInterval = setInterval(() => {
+        console.log('⏳ البوت مستمر في الفحص بانتظار إكمال التوثيق عبر الرابط...');
+      }, 15000);
     }
   });
 
-  client.on('error', (err) => {
-    console.log('❌ خطأ في الاتصال:', err.message || err);
+  // عند إتمام التوثيق والدخول بنجاح
+  client.on('join', () => {
+    if (checkInterval) clearInterval(checkInterval);
+    console.log('✅ تم التحقق من حساب Microsoft ودخل البوت إلى السيرفر بنجاح!');
   });
 
+  // عند حدوث خطأ أثناء الفحص أو الاتصال
+  client.on('error', (err) => {
+    if (checkInterval) clearInterval(checkInterval);
+    console.log('❌ خطأ في الاتصال أو التوثيق:', err.message || err);
+  });
+
+  // عند انقطاع الاتصال أو انتهاء مهلة الرمز
   client.on('close', (reason) => {
-    console.log('⚠️ انقطع الاتصال بالسيرفر! السبب:', reason || 'Disconnect');
-    console.log('🔄 إعادة محاولة الدخول خلال 10 ثوانٍ...');
+    if (checkInterval) clearInterval(checkInterval);
+    console.log('⚠️ انقطع الاتصال أو انتهت المهلة! السبب:', reason || 'Disconnected');
+    console.log('🔄 إعادة محاولة الفحص والدخول خلال 10 ثوانٍ...');
     setTimeout(startBot, 10000);
   });
 }
