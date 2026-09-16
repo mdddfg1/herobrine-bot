@@ -1,59 +1,111 @@
 const http = require('http');
 const bedrock = require('bedrock-protocol');
 
-// خادم وهمي لإبقاء الخدمة تعمل على Render
-http.createServer((req, res) => res.end('Bedrock Bot Active!')).listen(process.env.PORT || 3000);
+// 1. خادم إبقاء الخدمة حية ومستمرة على منصة Render
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+  res.end('🤖 بوت هيروبرين يعمل ويراقب السيرفر!');
+}).listen(process.env.PORT || 3000);
 
+// 2. إعدادات اتصال البوت
 const botConfig = {
   host: 'SERAJ_ABDO2.aternos.me',
   port: 52058,
   username: 'Herobrine',
   offline: false,
-  version: '1.26.45',
   skipPing: true,
-  profilesFolder: './msa-cache' // حفظ ملفات التوثيق محلياً لمنع طلب الرمز مجدداً
+  profilesFolder: './msa-cache' // حفظ التوثيق محلياً لمنع تكرار طلب الرمز
 };
 
+let isAttempting = false;
+
 function startBot() {
-  console.log('🔄 جاري بدء الاتصال والتحقق من حساب Microsoft...');
-  
-  let checkInterval = null;
+  if (isAttempting) return;
+  isAttempting = true;
 
-  const client = bedrock.createClient({
-    ...botConfig,
-    onMsaCode: (data) => {
-      console.log('====================================================');
-      console.log('🔐 افتح الرابط لتأكيد الدخول: ' + data.verification_uri);
-      console.log('🔑 أدخل الرمز التالي: ' + data.user_code);
-      console.log('====================================================');
+  console.log('----------------------------------------------------');
+  console.log('🔄 [فحص الاتصال] جاري محاولة التوصيل بسيرفر Aternos...');
 
-      // طباعة رسالة كل 15 ثانية لتأكيد أن البوت يفحص ويرتقب دخولك
-      if (checkInterval) clearInterval(checkInterval);
-      checkInterval = setInterval(() => {
-        console.log('⏳ البوت مستمر في الفحص بانتظار إكمال التوثيق عبر الرابط...');
-      }, 15000);
+  let client;
+  try {
+    client = bedrock.createClient(botConfig);
+  } catch (err) {
+    console.log('❌ [خطأ في النظام]:', err.message);
+    scheduleReconnect();
+    return;
+  }
+
+  // حالة 1: طلب توثيق مايكروسوفت (عند الحاجة)
+  client.on('msaCode', (data) => {
+    console.log('\n====================================================');
+    console.log('🔐 [توثيق Microsoft مطلوب]');
+    console.log('👉 افتح الرابط: ' + data.verification_uri);
+    console.log('🔑 أدخل الرمز: ' + data.user_code);
+    console.log('⚠️ يرجى التفعيل خلال دقائق لمنع انتهاء مهلة الرمز.');
+    console.log('====================================================\n');
+  });
+
+  // حالة 2: نجاح التوثيق مع حساب مايكروسوفت
+  client.on('session', () => {
+    console.log('🔑 ✅ [نجاح التوثيق] تم التوثيق مع Microsoft! جاري فحص جاهزية السيرفر...');
+  });
+
+  // حالة 3: الوصول لمنفذ السيرفر عبر الشبكة
+  client.on('connect', () => {
+    console.log('🌐 [اتصال الشبكة] تم الوصول لمنفذ السيرفر (UDP)، جاري دخول العالم...');
+  });
+
+  // حالة 4: دخول عالم ماينكرافت بنجاح
+  client.on('join', () => {
+    isAttempting = false;
+    console.log('🎉 ✅ [تم الدخول بنجاح] هيروبرين متصل الآن داخل عالم السيرفر!');
+  });
+
+  // حالة 5: التفاعل مع الدردشة
+  client.on('text', (packet) => {
+    if (packet.message && packet.message.toLowerCase().includes('hello')) {
+      client.queue('text', {
+        type: 'chat',
+        needs_translation: false,
+        source_name: 'Herobrine',
+        message: 'I am always watching you...',
+        xuid: '',
+        platform_chat_id: ''
+      });
     }
   });
 
-  // عند إتمام التوثيق والدخول بنجاح
-  client.on('join', () => {
-    if (checkInterval) clearInterval(checkInterval);
-    console.log('✅ تم التحقق من حساب Microsoft ودخل البوت إلى السيرفر بنجاح!');
-  });
-
-  // عند حدوث خطأ أثناء الفحص أو الاتصال
+  // حالة 6: التقاط وتفسير الأخطاء التفصيلية
   client.on('error', (err) => {
-    if (checkInterval) clearInterval(checkInterval);
-    console.log('❌ خطأ في الاتصال أو التوثيق:', err.message || err);
+    const errMsg = err.message || String(err);
+    console.log('❌ [خطأ في الاتصال]:', errMsg);
+
+    if (errMsg.includes('ECONNREFUSED') || errMsg.includes('ETIMEDOUT') || errMsg.includes('ENOTFOUND')) {
+      console.log('🔴 [حالة السيرفر]: سيرفر Aternos مطفأ (Offline) حالياً أو منفذ الاتصال مغلق.');
+    } else if (errMsg.includes('Disconnect') || errMsg.includes('disconnect')) {
+      console.log('⚠️ [حالة السيرفر]: تم رفض الاتصال. قد يكون السيرفر في مرحلة إعادة التشغيل.');
+    }
   });
 
-  // عند انقطاع الاتصال أو انتهاء مهلة الرمز
+  // حالة 7: عند انقطاع الاتصال أو إغلاقه
   client.on('close', (reason) => {
-    if (checkInterval) clearInterval(checkInterval);
-    console.log('⚠️ انقطع الاتصال أو انتهت المهلة! السبب:', reason || 'Disconnected');
-    console.log('🔄 إعادة محاولة الفحص والدخول خلال 10 ثوانٍ...');
-    setTimeout(startBot, 10000);
+    const cause = reason || 'غير معروف';
+    console.log('⚠️ [انقطاع الاتصال]: السبب -', cause);
+
+    if (cause.includes('Server requested disconnect') || cause.includes('Disconnect')) {
+      console.log('📢 [تشخيص Aternos]: السيرفر غير متاح (Offline). شَغِّل السيرفر من موقع Aternos وسيدخل البوت تلقائياً.');
+    }
+
+    scheduleReconnect();
   });
 }
 
+// دالة إعادة الاتصال التلقائي المستمر
+function scheduleReconnect() {
+  isAttempting = false;
+  console.log('🔄 سيعيد البوت فحص السيرفر ومحاولة الدخول خلال 15 ثانية...\n');
+  setTimeout(startBot, 15000);
+}
+
+// بدء التشغيل
 startBot();
