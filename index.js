@@ -18,9 +18,6 @@ const options = {
   port: 52058,
   username: 'Herobrine',
   auth: 'offline',
-
-  // لا تستخدم auto-detect هنا
-  version: '26.3'
 };
 
 let bot;
