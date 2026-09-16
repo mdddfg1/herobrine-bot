@@ -1,15 +1,16 @@
 {
-  "name": "herobrine-bot",
+  "name": "herobrine-ai",
   "version": "1.0.0",
-  "private": true,
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=18"
   },
   "dependencies": {
-    "mineflayer": "github:PrismarineJS/mineflayer"
+    "mineflayer": "latest",
+    "mineflayer-pathfinder": "latest",
+    "minecraft-data": "latest"
   }
 }
