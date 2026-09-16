@@ -1,20 +1,20 @@
 const http = require('http');
 const bedrock = require('bedrock-protocol');
 
-// 1. خادم إبقاء الخدمة حية ومستمرة على منصة Render
+// 1. خادم ويب لإبقاء الخدمة حية ومستمرة على منصة Render
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('🤖 بوت هيروبرين يعمل ويراقب السيرفر!');
 }).listen(process.env.PORT || 3000);
 
-// 2. إعدادات اتصال البوت
+// 2. إعدادات اتصال البوت بالسيرفر
 const botConfig = {
   host: 'SERAJ_ABDO2.aternos.me',
-  port: 52058,
+  port: 52058, // تأكد من مطابقة المنفذ (Port) الظاهر في صفحة Aternos الرئيسية
   username: 'Herobrine',
   offline: false,
-  
-  profilesFolder: './msa_folder' // حفظ التوثيق محلياً لمنع تكرار طلب الرمز
+  version: '1.26.45', // الإصدار المعتمد للاتصال
+  profilesFolder: './msa_folder' // مجلد جديد ونظيف لحفظ توثيق حساب Microsoft
 };
 
 let isAttempting = false;
@@ -35,77 +35,102 @@ function startBot() {
     return;
   }
 
-  // حالة 1: طلب توثيق مايكروسوفت (عند الحاجة)
+  // دالة إرسال أوامر الأدمن إلى شات ماينكرافت
+  function sendCmd(cmd) {
+    if (!client) return;
+    try {
+      client.queue('text', {
+        type: 'chat',
+        needs_translation: false,
+        source_name: 'Herobrine',
+        message: cmd,
+        xuid: '',
+        platform_chat_id: ''
+      });
+    } catch (e) {
+      // تجاهل الأخطاء عند عدم اكتمال تحميل الشات
+    }
+  }
+
+  // 1. طلب رمز توثيق مايكروسوفت عند الحاجة أول مرة
   client.on('msaCode', (data) => {
     console.log('\n====================================================');
     console.log('🔐 [توثيق Microsoft مطلوب]');
     console.log('👉 افتح الرابط: ' + data.verification_uri);
     console.log('🔑 أدخل الرمز: ' + data.user_code);
-    console.log('⚠️ يرجى التفعيل خلال دقائق لمنع انتهاء مهلة الرمز.');
     console.log('====================================================\n');
   });
 
-  // حالة 2: نجاح التوثيق مع حساب مايكروسوفت
+  // 2. نجاح التوثيق مع حساب مايكروسوفت
   client.on('session', () => {
-    console.log('🔑 ✅ [نجاح التوثيق] تم التوثيق مع Microsoft! جاري فحص جاهزية السيرفر...');
+    console.log('🔑 ✅ [نجاح التوثيق] تم التوثيق مع Microsoft! جاري التحقق من جاهزية السيرفر...');
   });
 
-  // حالة 3: الوصول لمنفذ السيرفر عبر الشبكة
+  // 3. الاتصال بمنفذ الشبكة
   client.on('connect', () => {
-    console.log('🌐 [اتصال الشبكة] تم الوصول لمنفذ السيرفر (UDP)، جاري دخول العالم...');
+    console.log('🌐 [اتصال الشبكة] تم الوصول لمنفذ السيرفر، جاري دخول العالم...');
   });
 
-  // حالة 4: دخول عالم ماينكرافت بنجاح
+  // 4. الدخول الكامل إلى السيرفر وتفعيل كود الرعب
   client.on('join', () => {
     isAttempting = false;
-    console.log('🎉 ✅ [تم الدخول بنجاح] هيروبرين متصل الآن داخل عالم السيرفر!');
+    console.log('🎉 ✅ [تم الدخول بنجاح] هيروبرين متصل الآن داخل السيرفر!');
+
+    // أ) هالة البارتيكلز (تأثير لهب وشرار لافا متصاعد حول البوت)
+    setInterval(() => {
+      sendCmd('/execute at Herobrine run particle minecraft:basic_flame_particle ~ ~1 ~');
+      sendCmd('/execute at Herobrine run particle minecraft:lava_particle ~ ~1.2 ~');
+    }, 1200);
+
+    // ب) إلحاق الضرر باللاعبين القريبين منه (مسافة 3 بلوكات)
+    setInterval(() => {
+      sendCmd('/damage @a[r=3,name=!Herobrine] 4 entity_attack entity Herobrine');
+    }, 1000);
+
+    // ج) قدرات الرعب الدورية (كل 30 ثانية)
+    setInterval(() => {
+      // إعطاء تأثير العمى والظلام للاعبين القريبين
+      sendCmd('/effect give @a[r=15,name=!Herobrine] darkness 6 1 true');
+      sendCmd('/effect give @a[r=15,name=!Herobrine] blindness 4 1 true');
+
+      // تشغيل صوت صراخ مرعب عند موقع اللاعبين
+      sendCmd('/execute at @a run playsound mob.ghast.scream @s ~ ~ ~ 1 0.7');
+
+      // الانتقال الفجائي (Teleport) خلف لاعب عشوائي
+      sendCmd('/execute at @r[name=!Herobrine] run tp Herobrine ~ ~ ~-2');
+    }, 30000);
   });
 
-  // حالة 5: التفاعل مع الدردشة
+  // 5. التفاعل مع شات اللعبة عند ذكر اسمه
   client.on('text', (packet) => {
-    if (packet.message && packet.message.toLowerCase().includes('hello')) {
-      client.queue('text', {
-        type: 'chat',
-        needs_translation: false,
-        source_name: 'Herobrine',
-        message: 'I am always watching you...',
-        xuid: '',
-        platform_chat_id: ''
-      });
+    if (packet.message && packet.message.toLowerCase().includes('herobrine')) {
+      sendCmd('I am always watching you...');
     }
   });
 
-  // حالة 6: التقاط وتفسير الأخطاء التفصيلية
+  // 6. كشف الأخطاء وتفسيرها
   client.on('error', (err) => {
     const errMsg = err.message || String(err);
     console.log('❌ [خطأ في الاتصال]:', errMsg);
 
-    if (errMsg.includes('ECONNREFUSED') || errMsg.includes('ETIMEDOUT') || errMsg.includes('ENOTFOUND')) {
-      console.log('🔴 [حالة السيرفر]: سيرفر Aternos مطفأ (Offline) حالياً أو منفذ الاتصال مغلق.');
-    } else if (errMsg.includes('Disconnect') || errMsg.includes('disconnect')) {
-      console.log('⚠️ [حالة السيرفر]: تم رفض الاتصال. قد يكون السيرفر في مرحلة إعادة التشغيل.');
+    if (errMsg.includes('Connect timed out') || errMsg.includes('ETIMEDOUT')) {
+      console.log('🔴 [تشخيص Aternos]: السيرفر مغلق (Offline) حالياً أو أن رقم المنفذ (Port) تغير.');
     }
   });
 
-  // حالة 7: عند انقطاع الاتصال أو إغلاقه
+  // 7. عند انقطاع الاتصال
   client.on('close', (reason) => {
-    const cause = reason || 'غير معروف';
-    console.log('⚠️ [انقطاع الاتصال]: السبب -', cause);
-
-    if (cause.includes('Server requested disconnect') || cause.includes('Disconnect')) {
-      console.log('📢 [تشخيص Aternos]: السيرفر غير متاح (Offline). شَغِّل السيرفر من موقع Aternos وسيدخل البوت تلقائياً.');
-    }
-
+    console.log('⚠️ [انقطع الاتصال]: السبب -', reason || 'غير معروف');
     scheduleReconnect();
   });
 }
 
-// دالة إعادة الاتصال التلقائي المستمر
+// دالة التكرار التلقائي للمحاولة عند انقطاع الاتصال
 function scheduleReconnect() {
   isAttempting = false;
-  console.log('🔄 سيعيد البوت فحص السيرفر ومحاولة الدخول خلال 15 ثانية...\n');
+  console.log('🔄 سيتم إعادة فحص السيرفر ومحاولة الدخول خلال 15 ثانية...\n');
   setTimeout(startBot, 15000);
 }
 
-// بدء التشغيل
+// بدء تشغيل البوت
 startBot();
