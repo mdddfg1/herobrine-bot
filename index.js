@@ -14,8 +14,8 @@ const CONFIG = {
   // إذا كان سيرفر Aternos مضبوطًا على Cracked / Offline:
   auth: 'offline',
 
-  // نبقي 26.3 كما هو حاليًا
-  version: '26.3',
+  // نبقي 26.1 كما هو حاليًا
+  version: '26.1',
 
   // إعادة الاتصال الأساسية
   reconnect: true,
