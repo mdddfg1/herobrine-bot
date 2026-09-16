@@ -13,7 +13,6 @@ const botOptions = {
   port: 52058,
   username: 'Herobrine',
   auth: 'offline',
-  version: '1.21'
 };
 
 function createBot() {
