@@ -7,9 +7,15 @@ const botConfig = {
   host: 'SERAJ_ABDO2.aternos.me',
   port: 52058,
   username: 'Herobrine',
-  offline: true,
-  version: '1.26.45', // تثبيت إصدار البروتوكول المتوافق مع السيرفر
-  skipPing: true      // تجاوز فحص الـ Ping لمنع قطع الاتصال الفوري
+  offline: false, // يجب أن تكون false لتجاوز رفض سيرفر البيدروك
+  onMsaCode: (data) => {
+    // طباعة رابط وكود التفعيل في Logs منصة Render
+    console.log('====================================================');
+    console.log('🔐 لتسجيل دخول البوت، افتح الرابط التالي:');
+    console.log(data.verification_uri);
+    console.log('🔑 وأدخل هذا الرمز:', data.user_code);
+    console.log('====================================================');
+  }
 };
 
 function startBot() {
