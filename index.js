@@ -13,6 +13,7 @@ const botConfig = {
   port: 52058,
   username: 'Herobrine',
   offline: false,
+  version: '1.26.50.5',
   profilesFolder: './msa-cache' // حفظ التوثيق محلياً لمنع تكرار طلب الرمز
 };
 
