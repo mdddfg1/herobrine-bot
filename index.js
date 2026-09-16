@@ -1,45 +1,36 @@
 const http = require('http');
-const mineflayer = require('mineflayer');
+const bedrock = require('bedrock-protocol');
 
-// رابط Aternos (رابط إضافة/دعوة)
-// هذا الرابط مفيد للمشاركة لكن ليس هو المضيف المباشر الذي يحتاجه mineflayer للاتصال.
-const ATERNOS_INVITE = process.env.ATERNOS_INVITE || 'https://add.aternos.org/SERAJ_ABDO2';
+// خادم وهمي لإبقاء الخدمة تعمل على Render
+http.createServer((req, res) => res.end('Bedrock Bot Active!')).listen(process.env.PORT || 3000);
 
-// خادم وهمي لإبقاء موقع Render/Heroku شغالاً
-http.createServer((req, res) => res.end('Herobrine is online!')).listen(process.env.PORT || 52058);
-
-// إعدادات دخول البوت - غيّر المتغيرات البيئية أو استبدل القيم هنا
-const bot = mineflayer.createBot({
-  host: process.env.MC_HOST || 'SERAJ_ABDO2.aternos.me', // تم تعيين مضيف Aternos الذي أعطيته
-  port: Number(process.env.MC_PORT) || 25565,                            // البورت الخاص بك
-  username: process.env.MC_USERNAME || 'Herobrine'
+// إعدادات اتصال البوت مع سيرفر البيدروك الخاص بك
+const client = bedrock.createClient({
+  host: 'SERAJ_ABDO2.aternos.me', // عنوان سيرفرك
+  port: 52058,                    // منفذ البيدروك
+  username: 'Herobrine',          // اسم البوت
+  offline: true                   // لتخطي الحسابات المدفوعة (Cracked)
 });
 
-bot.on('spawn', () => {
-  console.log('✅ دخل هيروبرين إلى السيرفر!');
-  console.log('🔗 Aternos invite link:', ATERNOS_INVITE);
-  console.log('ℹ️ Note: The invite link is for adding/joining the server on Aternos; mineflayer needs the server host (e.g. my-server.aternos.me) which is set above.');
+// عند نجاح دخول البوت للسيرفر
+client.on('join', () => {
+  console.log('✅ دخل هيروبرين إلى سيرفر البيدروك بنجاح!');
 });
 
-// سلوك هيروبرين (المراقبة والاختفاء عند الاقتراب)
-bot.on('physicTick', () => {
-  if (!bot.entity) return; // تأكد أن بيانات الكيان متاحة
-  const filter = e => e.type === 'player' && e.username !== bot.username;
-  const player = bot.nearestEntity(filter);
-
-  if (player) {
-    // حاول النظر إلى اللاعب (التجاهل إذا فشل)
-    try { bot.lookAt(player.position.offset(0, player.height, 0)); } catch (e) {}
-
-    const distance = bot.entity.position.distanceTo(player.position);
-
-    if (distance < 5) {
-      bot.chat('I see you...');
-      bot.quit(); // الخروج فوراً لإيهام اللاعب بالإختفاء
-    }
+// التفاعل مع الرسائل في دردشة اللعبة
+client.on('text', (packet) => {
+  if (packet.message.includes('hello')) {
+    client.queue('text', {
+      type: 'chat',
+      needs_translation: false,
+      source_name: 'Herobrine',
+      message: 'I am always watching you...',
+      xuid: '',
+      platform_chat_id: ''
+    });
   }
 });
 
-// لوج الأخطاء وإعادة المحاولة البسيطة
-bot.on('error', err => console.error('Bot error:', err));
-bot.on('end', () => console.log('Bot disconnected'));
+// كشف وإظهار الأخطاء
+client.on('error', (err) => console.log('❌ خطأ في الاتصال:', err));
+client.on('close', () => console.log('⚠️ انقطع الاتصال بالسيرفر.'));
