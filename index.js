@@ -1,424 +1,338 @@
-const http = require('http');
-const mineflayer = require('mineflayer');
+const http=require('http');
+const mineflayer=require('mineflayer');
 
-// ======================================================
-// ⚙️ إعدادات البوت
-// ======================================================
-
-const CONFIG = {
-  host: 'SERAJ_ABDO2.aternos.me',
-  port: 52058,
-
-  username: 'Herobrine',
-
-  // إذا كان سيرفر Aternos مضبوطًا على Cracked / Offline:
-  auth: 'offline',
-
-  // نبقي 26.3 كما هو حاليًا
-  version: '26.1',
-
-  // إعادة الاتصال الأساسية
-  reconnect: true,
-
-  // أقل مدة قبل محاولة الاتصال التالية
-  minReconnectDelay: 15000,
-
-  // أقصى مدة انتظار
-  maxReconnectDelay: 300000
+const CONFIG={
+  host:'SERAJ_ABDO2.aternos.me',
+  port:52058,
+  username:'Herobrine',
+  auth:'offline',
+  version:'26.1',
+  reconnect:true,
+  minReconnectDelay:15000,
+  maxReconnectDelay:300000,
+  playerTargetRange:32,
+  mobTargetRange:20,
+  attackInterval:700,
+  playerDamage:6,
+  mobDamage:20
 };
 
-// ======================================================
-// 🌐 Web Server - Render
-// ======================================================
+const PORT=process.env.PORT||10000;
 
-const PORT = process.env.PORT || 10000;
-
-const server = http.createServer((req, res) => {
-  res.writeHead(200, {
-    'Content-Type': 'text/plain; charset=utf-8'
-  });
-
-  res.end(
-    '👻 Herobrine Bot يعمل\n' +
-    'Minecraft Java 26.1\n'
-  );
+const server=http.createServer((req,res)=>{
+  res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8'});
+  res.end('👻 Herobrine Bot يعمل\nMinecraft Java 26.1\n');
 });
 
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT,'0.0.0.0',()=>{
   console.log(`🌐 Web server running on port ${PORT}`);
 });
 
-// ======================================================
-// 🤖 حالة البوت
-// ======================================================
+let bot=null;
+let reconnectTimer=null;
+let reconnectDelay=CONFIG.minReconnectDelay;
+let powersInterval=null;
+let combatInterval=null;
+let connecting=false;
+let currentTarget=null;
 
-let bot = null;
-let reconnectTimer = null;
-
-let reconnectDelay = CONFIG.minReconnectDelay;
-
-let powersInterval = null;
-let damageInterval = null;
-
-// لمنع تشغيل أكثر من اتصال في نفس الوقت
-let connecting = false;
-
-// ======================================================
-// 🧹 تنظيف المؤقتات
-// ======================================================
-
-function clearBotTimers() {
-  if (powersInterval) {
+function clearBotTimers(){
+  if(powersInterval){
     clearInterval(powersInterval);
-    powersInterval = null;
+    powersInterval=null;
   }
-
-  if (damageInterval) {
-    clearInterval(damageInterval);
-    damageInterval = null;
+  if(combatInterval){
+    clearInterval(combatInterval);
+    combatInterval=null;
   }
 }
 
-// ======================================================
-// ⏳ إعادة الاتصال
-// ======================================================
-
-function scheduleReconnect(reason = '') {
-  if (!CONFIG.reconnect) {
-    return;
-  }
-
-  if (reconnectTimer) {
-    return;
-  }
-
-  const delay = reconnectDelay;
-
+function scheduleReconnect(reason=''){
+  if(!CONFIG.reconnect||reconnectTimer)return;
+  const delay=reconnectDelay;
   console.log('');
   console.log('🔄 إعادة الاتصال مجدولة');
-  console.log(`⏳ الانتظار: ${Math.round(delay / 1000)} ثانية`);
-
-  if (reason) {
-    console.log(`📌 السبب: ${reason}`);
-  }
-
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null;
-
+  console.log(`⏳ الانتظار: ${Math.round(delay/1000)} ثانية`);
+  if(reason)console.log(`📌 السبب: ${reason}`);
+  reconnectTimer=setTimeout(()=>{
+    reconnectTimer=null;
     startBot();
-
-  }, delay);
-
-  // زيادة مدة الانتظار للمحاولة التالية
-  reconnectDelay = Math.min(
-    reconnectDelay * 2,
-    CONFIG.maxReconnectDelay
-  );
+  },delay);
+  reconnectDelay=Math.min(reconnectDelay*2,CONFIG.maxReconnectDelay);
 }
 
-// ======================================================
-// 🤖 إنشاء البوت
-// ======================================================
-
-function startBot() {
-
-  if (connecting) {
+function startBot(){
+  if(connecting){
     console.log('⚠️ توجد محاولة اتصال بالفعل...');
     return;
   }
-
-  if (bot) {
+  if(bot){
     console.log('⚠️ يوجد بوت حالي، لن يتم إنشاء اتصال آخر.');
     return;
   }
 
-  connecting = true;
+  connecting=true;
 
   console.log('');
   console.log('======================================');
   console.log('👻 Starting Herobrine');
   console.log(`🎮 Minecraft: ${CONFIG.version}`);
-  console.log('📡 Protocol: 777');
   console.log(`🌍 Server: ${CONFIG.host}:${CONFIG.port}`);
   console.log(`👤 Username: ${CONFIG.username}`);
   console.log('======================================');
 
-  try {
-
-    bot = mineflayer.createBot({
-      host: CONFIG.host,
-      port: CONFIG.port,
-      username: CONFIG.username,
-      auth: CONFIG.auth,
-      version: CONFIG.version,
-
-      // منع بعض مشاكل الاتصال
-      checkTimeoutInterval: 60000
+  try{
+    bot=mineflayer.createBot({
+      host:CONFIG.host,
+      port:CONFIG.port,
+      username:CONFIG.username,
+      auth:CONFIG.auth,
+      version:CONFIG.version,
+      checkTimeoutInterval:60000
     });
-
-  } catch (error) {
-
-    connecting = false;
-    bot = null;
-
-    console.error('❌ Bot creation failed:', error);
-
+  }catch(error){
+    connecting=false;
+    bot=null;
+    console.error('❌ Bot creation failed:',error);
     scheduleReconnect(error.message);
-
     return;
   }
 
-  // ====================================================
-  // 🟢 اتصال ناجح
-  // ====================================================
-
-  bot.once('spawn', () => {
-
-    connecting = false;
-
-    // الاتصال نجح، نرجع زمن إعادة الاتصال إلى البداية
-    reconnectDelay = CONFIG.minReconnectDelay;
-
+  bot.once('spawn',()=>{
+    connecting=false;
+    reconnectDelay=CONFIG.minReconnectDelay;
     console.log('');
     console.log('======================================');
     console.log('✅ HEROBRINE JOINED THE SERVER');
     console.log('👻 البوت دخل السيرفر بنجاح!');
     console.log('======================================');
-
+    startHerobrineCombat();
     startHerobrinePowers();
   });
 
-  // ====================================================
-  // 💬 الشات
-  // ====================================================
-
-  bot.on('chat', (username, message) => {
-
-    if (!message) {
-      return;
-    }
-
-    const text = message.toLowerCase();
-
+  bot.on('chat',(username,message)=>{
+    if(!message)return;
+    const text=message.toLowerCase();
     console.log(`💬 ${username}: ${message}`);
 
-    if (
-      text.includes('herobrine') ||
-      text.includes('هيروبرين')
-    ) {
-
-      const responses = [
+    if(text.includes('herobrine')||text.includes('هيروبرين')){
+      const responses=[
         '👻 I am watching...',
         '👁️ You should not have called me.',
         '😈 Herobrine is here.',
         '☠️ I see you...',
         '👻 Do you really think you are alone?'
       ];
-
-      const response =
-        responses[Math.floor(Math.random() * responses.length)];
-
-      setTimeout(() => {
-
-        if (bot && bot.chat) {
-          bot.chat(response);
-        }
-
-      }, 1000 + Math.random() * 2000);
+      const response=responses[Math.floor(Math.random()*responses.length)];
+      setTimeout(()=>{
+        if(bot&&bot.chat)bot.chat(response);
+      },1000+Math.random()*2000);
     }
   });
 
-  // ====================================================
-  // ❌ الطرد
-  // ====================================================
-
-  bot.on('kicked', (reason) => {
-
-    let message = reason;
-
-    try {
-      if (typeof reason === 'string') {
-        const parsed = JSON.parse(reason);
-        message = parsed;
-      }
-    } catch (_) {}
-
+  bot.on('kicked',(reason)=>{
     console.log('');
-    console.log('🚫 Kicked:', message);
-
+    console.log('🚫 Kicked:',reason);
     clearBotTimers();
+    currentTarget=null;
+    connecting=false;
 
-    connecting = false;
-
-    // مهم جدًا:
-    // إذا كان السيرفر يطلب الانتظار، نعطيه مدة أطول
-    if (
-      typeof reason === 'string' &&
-      (
-        reason.toLowerCase().includes('throttled') ||
-        reason.toLowerCase().includes('wait before reconnecting')
-      )
-    ) {
-
-      reconnectDelay = Math.max(
-        reconnectDelay,
-        60000
-      );
-
-      console.log('⏳ السيرفر طلب الانتظار قبل إعادة الاتصال.');
-      console.log(
-        `⏱️ سننتظر ${Math.round(reconnectDelay / 1000)} ثانية على الأقل.`
-      );
+    if(typeof reason==='string'&&(reason.toLowerCase().includes('throttled')||reason.toLowerCase().includes('wait before reconnecting'))){
+      reconnectDelay=Math.max(reconnectDelay,60000);
+      console.log(`⏳ سننتظر ${Math.round(reconnectDelay/1000)} ثانية.`);
     }
   });
 
-  // ====================================================
-  // 🔌 إغلاق الاتصال
-  // ====================================================
-
-  bot.on('end', (reason) => {
-
+  bot.on('end',(reason)=>{
     console.log('');
-    console.log('🔌 Connection closed:', reason || 'unknown');
-
+    console.log('🔌 Connection closed:',reason||'unknown');
     clearBotTimers();
-
-    connecting = false;
-
-    bot = null;
-
-    scheduleReconnect(
-      reason || 'Connection closed'
-    );
+    currentTarget=null;
+    connecting=false;
+    bot=null;
+    scheduleReconnect(reason||'Connection closed');
   });
 
-  // ====================================================
-  // ❌ أخطاء البوت
-  // ====================================================
-
-  bot.on('error', (error) => {
-
+  bot.on('error',(error)=>{
     console.error('');
-    console.error('❌ Bot error:', error.message);
-
-    // لا ننشئ اتصالًا جديدًا هنا مباشرة.
-    // حدث end سيعالج إعادة الاتصال.
+    console.error('❌ Bot error:',error.message);
   });
 
-  // ====================================================
-  // 💥 مشكلة الاتصال
-  // ====================================================
-
-  bot.on('death', () => {
-
+  bot.on('death',()=>{
     console.log('💀 Herobrine died.');
-
-    setTimeout(() => {
-
-      if (bot && bot.chat) {
-        bot.chat('👻 You cannot escape me...');
-      }
-
-    }, 1500);
+    currentTarget=null;
+    setTimeout(()=>{
+      if(bot&&bot.chat)bot.chat('👻 You cannot escape me...');
+    },1500);
   });
 }
 
-// ======================================================
-// 👻 قدرات Herobrine
-// ======================================================
+function findNearestPlayer(){
+  if(!bot||!bot.entity)return null;
+  let nearest=null;
+  let nearestDistance=CONFIG.playerTargetRange;
 
-function startHerobrinePowers() {
-
-  clearBotTimers();
-
-  if (!bot) {
-    return;
+  for(const player of Object.values(bot.players)){
+    if(!player||!player.entity||player.username===bot.username)continue;
+    const distance=bot.entity.position.distanceTo(player.entity.position);
+    if(distance<nearestDistance){
+      nearest=player.entity;
+      nearestDistance=distance;
+    }
   }
+  return nearest;
+}
 
-  // ====================================================
-  // ⚔️ مهاجمة اللاعبين القريبين
-  // ====================================================
+function findNearestMob(){
+  if(!bot||!bot.entity)return null;
+  let nearest=null;
+  let nearestDistance=CONFIG.mobTargetRange;
 
-  damageInterval = setInterval(() => {
+  for(const entity of Object.values(bot.entities)){
+    if(!entity||entity.type==='player')continue;
+    if(entity.type!=='mob'&&entity.type!=='object')continue;
+    if(entity.health!==undefined&&entity.health<=0)continue;
 
-    if (!bot || !bot.entity) {
+    const distance=bot.entity.position.distanceTo(entity.position);
+
+    if(distance<nearestDistance){
+      nearest=entity;
+      nearestDistance=distance;
+    }
+  }
+  return nearest;
+}
+
+function selectTarget(){
+  const player=findNearestPlayer();
+
+  if(player)return{entity:player,type:'player'};
+
+  const mob=findNearestMob();
+
+  if(mob)return{entity:mob,type:'mob'};
+
+  return null;
+}
+
+async function lookAtTarget(target){
+  if(!bot||!target)return;
+
+  try{
+    await bot.lookAt(
+      target.position.offset(
+        0,
+        target.height?target.height*0.7:1,
+        0
+      ),
+      true
+    );
+  }catch(error){
+    console.log('⚠️ Look error:',error.message);
+  }
+}
+
+function hitEffects(target){
+  if(!bot||!target)return;
+
+  try{
+    if(target.type==='player'){
+      bot.chat(`/particle minecraft:crit ${target.position.x} ${target.position.y+1} ${target.position.z} 0.4 0.5 0.4 0.2 15`);
+      bot.chat(`/playsound minecraft:entity.player.attack.strong master ${target.username} ~ ~ ~ 1 0.8`);
+      bot.chat(`/playsound minecraft:entity.warden.attack master ${target.username} ~ ~ ~ 0.5 0.6`);
+    }else{
+      bot.chat(`/particle minecraft:crit ${target.position.x} ${target.position.y+1} ${target.position.z} 0.4 0.5 0.4 0.2 15`);
+    }
+  }catch(error){
+    console.log('⚠️ Hit effect error:',error.message);
+  }
+}
+
+async function attackTarget(targetData){
+  if(!bot||!targetData)return;
+
+  const target=targetData.entity;
+  if(!target)return;
+
+  try{
+    const distance=bot.entity.position.distanceTo(target.position);
+
+    if(distance>4){
+      await lookAtTarget(target);
       return;
     }
 
-    try {
+    await lookAtTarget(target);
+    hitEffects(target);
 
-      const players = Object.values(bot.players);
+    if(targetData.type==='player'){
+      console.log(`⚔️ Herobrine attacks player: ${target.username}`);
+      bot.chat(`/damage ${target.username} ${CONFIG.playerDamage} minecraft:magic`);
+    }else{
+      console.log(`👹 Herobrine attacks mob: ${target.name||target.displayName||'mob'}`);
+      bot.chat(`/execute positioned ${target.position.x} ${target.position.y} ${target.position.z} run damage @e[type=!player,distance=..1] ${CONFIG.mobDamage} minecraft:magic`);
+    }
+  }catch(error){
+    console.log('⚠️ Attack error:',error.message);
+  }
+}
 
-      for (const player of players) {
+function startHerobrineCombat(){
+  if(combatInterval)clearInterval(combatInterval);
 
-        if (!player || !player.entity) {
-          continue;
-        }
+  combatInterval=setInterval(async()=>{
+    if(!bot||!bot.entity)return;
 
-        // لا يهاجم نفسه
-        if (player.username === bot.username) {
-          continue;
-        }
+    try{
+      const targetData=selectTarget();
 
-        const distance =
-          bot.entity.position.distanceTo(
-            player.entity.position
-          );
-
-        if (distance <= 3) {
-
-          console.log(
-            `⚔️ Herobrine attacks ${player.username}`
-          );
-
-          // أمر ضرر عبر السيرفر
-          bot.chat(
-            `/damage ${player.username} 4 minecraft:magic`
-          );
-        }
+      if(!targetData){
+        currentTarget=null;
+        return;
       }
 
-    } catch (error) {
-      console.log(
-        '⚠️ Damage error:',
-        error.message
+      currentTarget=targetData;
+
+      await lookAtTarget(targetData.entity);
+      await attackTarget(targetData);
+
+    }catch(error){
+      console.log('⚠️ Combat system error:',error.message);
+    }
+  },CONFIG.attackInterval);
+}
+
+function startHerobrinePowers(){
+  if(powersInterval)clearInterval(powersInterval);
+
+  powersInterval=setInterval(()=>{
+    if(!bot||!bot.entity)return;
+
+    try{
+      const players=Object.values(bot.players).filter(player=>
+        player&&player.entity&&player.username!==bot.username
       );
-    }
 
-  }, 3000);
-
-  // ====================================================
-  // 👻 قوى Herobrine كل 30 ثانية
-  // ====================================================
-
-  powersInterval = setInterval(() => {
-
-    if (!bot || !bot.entity) {
-      return;
-    }
-
-    try {
-
-      const players = Object.values(bot.players)
-        .filter(player =>
-          player &&
-          player.entity &&
-          player.username !== bot.username
-        );
-
-      if (players.length === 0) {
+      if(players.length===0){
         console.log('👻 لا يوجد لاعب آخر حاليًا.');
         return;
       }
 
-      const target =
-        players[
-          Math.floor(
-            Math.random() * players.length
-          )
-        ];
+      let target=null;
+      let nearestDistance=Infinity;
 
-      const username = target.username;
+      for(const player of players){
+        const distance=bot.entity.position.distanceTo(player.entity.position);
+
+        if(distance<nearestDistance){
+          nearestDistance=distance;
+          target=player;
+        }
+      }
+
+      if(!target)return;
+
+      const username=target.username;
 
       console.log('');
       console.log('👻 ==================================');
@@ -426,114 +340,56 @@ function startHerobrinePowers() {
       console.log('👻 Herobrine power activated');
       console.log('👻 ==================================');
 
-      // ==================================================
-      // 🌑 Darkness
-      // ==================================================
+      bot.chat(`/effect give ${username} minecraft:darkness 5 0 true`);
 
-      bot.chat(
-        `/effect give ${username} minecraft:darkness 5 0 true`
-      );
+      bot.chat(`/playsound minecraft:entity.ghast.scream master ${username} ~ ~ ~ 1 0.7`);
 
-      // ==================================================
-      // 🔊 Ghast scream
-      // ==================================================
+      bot.chat('/particle minecraft:smoke ~ ~1 ~ 0.5 1 0.5 0.02 30');
 
-      bot.chat(
-        `/playsound minecraft:entity.ghast.scream master ${username} ~ ~ ~ 1 0.7`
-      );
+      lookAtTarget(target.entity);
 
-      // ==================================================
-      // ✨ Particles
-      // ==================================================
+      const pos=target.entity.position;
 
-      bot.chat(
-        `/particle minecraft:smoke ~ ~1 ~ 0.5 1 0.5 0.02 30`
-      );
+      const x=Math.floor(pos.x+Math.floor(Math.random()*7)-3);
+      const y=Math.floor(pos.y);
+      const z=Math.floor(pos.z+Math.floor(Math.random()*7)-3);
 
-      // ==================================================
-      // 👻 Teleport بالقرب من اللاعب
-      // ==================================================
+      bot.chat(`/tp ${bot.username} ${x} ${y} ${z}`);
 
-      if (target.entity) {
-
-        const pos = target.entity.position;
-
-        const offsetX =
-          Math.floor(Math.random() * 7) - 3;
-
-        const offsetZ =
-          Math.floor(Math.random() * 7) - 3;
-
-        const x =
-          Math.floor(pos.x + offsetX);
-
-        const y =
-          Math.floor(pos.y);
-
-        const z =
-          Math.floor(pos.z + offsetZ);
-
-        bot.chat(
-          `/tp ${bot.username} ${x} ${y} ${z}`
-        );
-      }
-
-    } catch (error) {
-
-      console.log(
-        '⚠️ Herobrine powers error:',
-        error.message
-      );
+    }catch(error){
+      console.log('⚠️ Herobrine powers error:',error.message);
     }
-
-  }, 30000);
+  },30000);
 }
-
-// ======================================================
-// 🚀 تشغيل البوت
-// ======================================================
 
 startBot();
 
-// ======================================================
-// 🛑 إغلاق آمن
-// ======================================================
-
-function shutdown(signal) {
-
+function shutdown(signal){
   console.log('');
   console.log(`🛑 Received ${signal}`);
 
   clearBotTimers();
 
-  if (reconnectTimer) {
+  if(reconnectTimer){
     clearTimeout(reconnectTimer);
-    reconnectTimer = null;
+    reconnectTimer=null;
   }
 
-  if (bot) {
-
-    try {
+  if(bot){
+    try{
       bot.quit('Server shutting down');
-    } catch (_) {}
-
-    bot = null;
+    }catch(_){}
+    bot=null;
   }
 
-  server.close(() => {
+  server.close(()=>{
     process.exit(0);
   });
 
-  // حماية إذا لم يغلق السيرفر
-  setTimeout(() => {
+  setTimeout(()=>{
     process.exit(0);
-  }, 5000);
+  },5000);
 }
 
-process.on('SIGTERM', () => {
-  shutdown('SIGTERM');
-});
-
-process.on('SIGINT', () => {
-  shutdown('SIGINT');
-});
+process.on('SIGTERM',()=>shutdown('SIGTERM'));
+process.on('SIGINT',()=>shutdown('SIGINT'));
