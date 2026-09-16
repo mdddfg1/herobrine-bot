@@ -7,56 +7,48 @@ http.createServer((req, res) => {
   res.end('🤖 بوت هيروبرين (Java Offline) يعمل ويراقب السيرفر!');
 }).listen(process.env.PORT || 3000);
 
-// 2. إعدادات البوت لنظام الجافا المكرك (Cracked)
+// 2. إعدادات الاتصال بالسيرفر
 const botOptions = {
   host: 'SERAJ_ABDO2.aternos.me',
-  port: 52058,       // منفذ السيرفر الموضح في لوحة Aternos
+  port: 52058,
   username: 'Herobrine',
-  auth: 'offline',   // إلغاء توثيق مايكروسوفت والدخول المباشر
-  version: false     // اكتشاف إصدار السيرفر تلقائياً
+  auth: 'offline',
+  version: '1.21'
 };
 
 function createBot() {
   console.log('----------------------------------------------------');
-  console.log('🔄 [فحص الاتصال] جاري محاولة التوصيل بسيرفر Aternos (Java)...');
+  console.log('🔄 [فحص الاتصال] جاري محاولة التوصيل بسيرفر Spigot (1.21)...');
 
   const bot = mineflayer.createBot(botOptions);
 
-  // عند الدخول المبدئي
   bot.on('login', () => {
     console.log('🎉 ✅ [تم الدخول بنجاح] هيروبرين متصل الآن بوضع الأوفلاين!');
   });
 
-  // عند رسبنة البوت داخل العالم وتفعيل سكريبتات الرعب
   bot.on('spawn', () => {
     console.log('👻 هيروبرين متواجد داخل العالم وجاهز لنشر الرعب!');
 
-    // أ) هالة البارتيكلز (تأثير لهب وشرار حول البوت)
+    // 1. هالة البارتيكلز
     setInterval(() => {
       bot.chat('/execute at Herobrine run particle minecraft:flame ~ ~1 ~ 0.2 0.5 0.2 0.01 10');
       bot.chat('/execute at Herobrine run particle minecraft:lava ~ ~1.2 ~ 0.2 0.2 0.2 0.01 5');
     }, 1200);
 
-    // ب) إلحاق الضرر باللاعبين القريبين منه (مسافة 3 بلوكات)
+    // 2. إلحاق الضرر باللاعبين القريبين (3 بلوكات)
     setInterval(() => {
       bot.chat('/damage @a[distance=..3,name=!Herobrine] 4 entity_attack entity Herobrine');
     }, 1000);
 
-    // ج) قدرات الرعب الدورية (كل 30 ثانية)
+    // 3. قدرات الرعب الدورية (كل 30 ثانية)
     setInterval(() => {
-      // إعطاء تأثير الظلام والعمى للاعبين القريبين
       bot.chat('/effect give @a[distance=..15,name=!Herobrine] minecraft:darkness 6 1 true');
       bot.chat('/effect give @a[distance=..15,name=!Herobrine] minecraft:blindness 4 1 true');
-
-      // تشغيل صراخ مرعب عند موقع اللاعبين
       bot.chat('/execute at @a run playsound minecraft:entity.ghast.scream master @s ~ ~ ~ 1 0.7');
-
-      // الانتقال الفجائي (Teleport) خلف لاعب عشوائي
       bot.chat('/execute at @r[name=!Herobrine] run tp Herobrine ~ ~ ~-2');
     }, 30000);
   });
 
-  // التفاعل مع الشات عند ذكر اسم Herobrine
   bot.on('chat', (username, message) => {
     if (username === bot.username) return;
     if (message.toLowerCase().includes('herobrine')) {
@@ -64,9 +56,15 @@ function createBot() {
     }
   });
 
-  // إدارة الأخطاء وإعادة الاتصال التلقائي
+  // 4. معالجة الأخطاء وطباعة تفاصيل ورقم الخطأ بالكامل
   bot.on('error', (err) => {
-    console.log('❌ [خطأ في الاتصال]:', err.message || err);
+    console.log('❌ ================= [تفاصيل الخطأ] =================');
+    console.log('📌 رمز الخطأ (Code):', err.code || 'غير متوفر');
+    console.log('🔢 رقم النظام (Errno):', err.errno || 'غير متوفر');
+    console.log('⚙️ الأمر (Syscall):', err.syscall || 'غير متوفر');
+    console.log('📝 الرسالة (Message):', err.message || err);
+    console.log('🔍 الكائن كامل (Full Error):', err);
+    console.log('====================================================');
   });
 
   bot.on('end', (reason) => {
@@ -76,5 +74,9 @@ function createBot() {
   });
 }
 
-// تشغيل البوت
+// التقاط أي أخطاء غير متوقعة في التطبيق لمنع توقفه المفاجئ
+process.on('uncaughtException', (err) => {
+  console.log('🚨 [استثناء غير معالج]:', err.code || err.message, err);
+});
+
 createBot();
