@@ -1,15 +1,18 @@
 const http = require('http');
 const bedrock = require('bedrock-protocol');
 
+// خادم وهمي لإبقاء الخدمة تعمل على Render
 http.createServer((req, res) => res.end('Bedrock Bot Active!')).listen(process.env.PORT || 3000);
 
+// إعدادات اتصال البوت بالسيرفر
 const botConfig = {
   host: 'SERAJ_ABDO2.aternos.me',
   port: 52058,
   username: 'Herobrine',
-  offline: false, // يجب أن تكون false لتجاوز رفض سيرفر البيدروك
+  offline: false,       // يتوافق مع حماية شبكة Bedrock عبر حساب Microsoft
+  version: '1.26.45',   // إصدار بروتوكول البيدروك المتوافق
+  skipPing: true,       // منع قطع الاتصال أثناء فحص الاستجابة
   onMsaCode: (data) => {
-    // طباعة رابط وكود التفعيل في Logs منصة Render
     console.log('====================================================');
     console.log('🔐 لتسجيل دخول البوت، افتح الرابط التالي:');
     console.log(data.verification_uri);
@@ -18,10 +21,12 @@ const botConfig = {
   }
 };
 
+// دالة التشغيل وإعادة الاتصال التلقائي
 function startBot() {
   console.log('🔄 جاري الاتصال بالسيرفر...');
   const client = bedrock.createClient(botConfig);
 
+  // أحداث الاتصال والتفاعل
   client.on('join', () => {
     console.log('✅ دخل هيروبرين إلى سيرفر البيدروك بنجاح!');
   });
