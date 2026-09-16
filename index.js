@@ -9,7 +9,7 @@ const CONFIG = {
   host: 'SERAJ_ABDO2.aternos.me',
   port: 52058,
 
-  username: 'Herobrine',
+  username: 'Herobrine0',
 
   // إذا كان سيرفر Aternos مضبوطًا على Cracked / Offline:
   auth: 'offline',
