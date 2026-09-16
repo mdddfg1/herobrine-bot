@@ -1,19 +1,19 @@
 const http = require('http');
 const mineflayer = require('mineflayer');
 
-// خادم ويب لإبقاء الخدمة حية ومستمرة على منصة Render
+// 1. خادم ويب لإبقاء الخدمة حية ومستمرة على منصة Render
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-  res.end('🤖 بوت هيروبرين (Java Edition) يعمل ويراقب السيرفر!');
+  res.end('🤖 بوت هيروبرين (Java Offline) يعمل ويراقب السيرفر!');
 }).listen(process.env.PORT || 3000);
 
-// إعدادات البوت لسيرفر الجافا
+// 2. إعدادات البوت لنظام الجافا المكرك (Cracked)
 const botOptions = {
   host: 'SERAJ_ABDO2.aternos.me',
-  port: 52058, // المنفذ الموضح في صفحة Aternos
+  port: 52058,       // منفذ السيرفر الموضح في لوحة Aternos
   username: 'Herobrine',
-  auth: 'microsoft', // توثيق مايكروسوفت لنسخة الجافا
-  profilesFolder: './msa_java_folder'
+  auth: 'offline',   // إلغاء توثيق مايكروسوفت والدخول المباشر
+  version: false     // اكتشاف إصدار السيرفر تلقائياً
 };
 
 function createBot() {
@@ -22,29 +22,29 @@ function createBot() {
 
   const bot = mineflayer.createBot(botOptions);
 
-  // عند تسجيل الدخول بنجاح
+  // عند الدخول المبدئي
   bot.on('login', () => {
-    console.log('🎉 ✅ [تم الدخول بنجاح] هيروبرين متصل الآن داخل سيرفر الجافا!');
+    console.log('🎉 ✅ [تم الدخول بنجاح] هيروبرين متصل الآن بوضع الأوفلاين!');
   });
 
   // عند رسبنة البوت داخل العالم وتفعيل سكريبتات الرعب
   bot.on('spawn', () => {
-    console.log('👻 هيروبرين موجود الآن في العالم وجاهز لنشر الرعب!');
+    console.log('👻 هيروبرين متواجد داخل العالم وجاهز لنشر الرعب!');
 
-    // 1. هالة البارتيكلز (تأثير لهب وشرار حول هيروبرين)
+    // أ) هالة البارتيكلز (تأثير لهب وشرار حول البوت)
     setInterval(() => {
       bot.chat('/execute at Herobrine run particle minecraft:flame ~ ~1 ~ 0.2 0.5 0.2 0.01 10');
       bot.chat('/execute at Herobrine run particle minecraft:lava ~ ~1.2 ~ 0.2 0.2 0.2 0.01 5');
     }, 1200);
 
-    // 2. إلحاق الضرر باللاعبين القريبين منه (مسافة 3 بلوكات)
+    // ب) إلحاق الضرر باللاعبين القريبين منه (مسافة 3 بلوكات)
     setInterval(() => {
       bot.chat('/damage @a[distance=..3,name=!Herobrine] 4 entity_attack entity Herobrine');
     }, 1000);
 
-    // 3. قدرات الرعب الدورية (كل 30 ثانية)
+    // ج) قدرات الرعب الدورية (كل 30 ثانية)
     setInterval(() => {
-      // إعطاء تأثير الظلام والعمى
+      // إعطاء تأثير الظلام والعمى للاعبين القريبين
       bot.chat('/effect give @a[distance=..15,name=!Herobrine] minecraft:darkness 6 1 true');
       bot.chat('/effect give @a[distance=..15,name=!Herobrine] minecraft:blindness 4 1 true');
 
