@@ -78,29 +78,3 @@ function createBot() {
 
 // تشغيل البوت
 createBot();
-  // 6. كشف الأخطاء وتفسيرها
-  client.on('error', (err) => {
-    const errMsg = err.message || String(err);
-    console.log('❌ [خطأ في الاتصال]:', errMsg);
-
-    if (errMsg.includes('Connect timed out') || errMsg.includes('ETIMEDOUT')) {
-      console.log('🔴 [تشخيص Aternos]: السيرفر مغلق (Offline) حالياً أو أن رقم المنفذ (Port) تغير.');
-    }
-  });
-
-  // 7. عند انقطاع الاتصال
-  client.on('close', (reason) => {
-    console.log('⚠️ [انقطع الاتصال]: السبب -', reason || 'غير معروف');
-    scheduleReconnect();
-  });
-}
-
-// دالة التكرار التلقائي للمحاولة عند انقطاع الاتصال
-function scheduleReconnect() {
-  isAttempting = false;
-  console.log('🔄 سيتم إعادة فحص السيرفر ومحاولة الدخول خلال 15 ثانية...\n');
-  setTimeout(startBot, 15000);
-}
-
-// بدء تشغيل البوت
-startBot();
