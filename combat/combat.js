@@ -1,109 +1,140 @@
 const {GoalFollow}=require('mineflayer-pathfinder').goals
-const {memory,setAttacker,forgetAttacker}=require('../ai/memory')
+const {setAttacker,forgetAttacker,state}=require('../ai/memory')
 
-let bot
-let rageTimer
-let soundTimer
+let bot=null
+let rageTimer=null
+let effectTimer=null
+let soundTimer=null
+let currentTarget=null
+let lastHit=0
 
 function init(b){
   bot=b
-  bot.on('entityHurt',entity=>{
+  bot.on('entityHurt',(entity,source)=>{
     if(entity!==bot.entity)return
-    detectAttacker()
+    const now=Date.now()
+    if(now-lastHit<500)return
+    lastHit=now
+    const attacker=resolveAttacker(source)
+    if(attacker)enterRage(attacker)
+  })
+
+  bot.on('entityDead',entity=>{
+    if(currentTarget&&entity.id===currentTarget.id){
+      console.log(`☠️ Rage target killed: ${currentTarget.username||currentTarget.name}`)
+      stopRage(true)
+    }
   })
 }
 
-function detectAttacker(){
-  const players=Object.values(bot.players)
-    .map(p=>p.entity)
-    .filter(e=>e&&e.type==='player'&&e.position.distanceTo(bot.entity.position)<8)
+function resolveAttacker(source){
+  if(source&&source.type==='player'&&source.username!==bot.username)return source
+  if(source?.entity&&source.entity.type==='player'&&source.entity.username!==bot.username)return source.entity
 
-  if(!players.length)return
+  const nearby=Object.values(bot.entities)
+    .filter(e=>e&&e!==bot.entity&&e.type==='player'&&e.position&&bot.entity.position.distanceTo(e.position)<=7)
+    .sort((a,b)=>bot.entity.position.distanceTo(a.position)-bot.entity.position.distanceTo(b.position))
 
-  players.sort((a,b)=>a.position.distanceTo(bot.entity.position)-b.position.distanceTo(bot.entity.position))
-  const attacker=players[0]
-
-  if(attacker.username===bot.username)return
-
-  setAttacker(attacker.username)
-  console.log(`⚔️ ${attacker.username} attacked Herobrine`)
-  startRage(attacker)
+  return nearby[0]||null
 }
 
-function startRage(target){
-  if(!target)return
+function enterRage(target){
+  if(!target||!target.username)return
+  if(currentTarget&&currentTarget.username===target.username)return
 
-  clearInterval(rageTimer)
-  clearInterval(soundTimer)
-
+  stopRage(false)
+  currentTarget=target
+  setAttacker(target)
+  console.log(`⚔️ ATTACKER DETECTED: ${target.username}`)
   console.log(`👹 RAGE MODE: ${target.username}`)
 
-  rageEffects(target)
-  playRageSounds(target)
+  try{
+    bot.chat(`⚔️ ${target.username}...`)
+  }catch(err){
+    console.error('❌ Rage chat error:',err.message)
+  }
+
+  applyEffects()
+  playSound()
+
+  effectTimer=setInterval(applyEffects,2500)
+  soundTimer=setInterval(playSound,4500)
 
   rageTimer=setInterval(()=>{
-    if(!target.isValid){
-      stopRage()
+    if(!currentTarget||!currentTarget.isValid||!bot?.entity){
+      stopRage(false)
       return
     }
 
-    if(target.position.distanceTo(bot.entity.position)>3){
-      bot.pathfinder.setGoal(new GoalFollow(target,2),true)
+    const distance=bot.entity.position.distanceTo(currentTarget.position)
+
+    bot.lookAt(currentTarget.position.offset(0,1.5,0),true).catch(()=>{})
+
+    if(distance>3){
+      try{
+        bot.pathfinder.setGoal(new GoalFollow(currentTarget,2),true)
+      }catch(err){
+        console.error('❌ Rage path error:',err.message)
+      }
     }else{
-      bot.pathfinder.setGoal(null)
-      attack(target)
+      try{
+        bot.pathfinder.setGoal(null)
+        bot.attack(currentTarget)
+      }catch(err){
+        console.error('❌ Rage attack error:',err.message)
+      }
     }
-
-    bot.lookAt(target.position.offset(0,1.4,0),true)
-  },300)
-
-  soundTimer=setInterval(()=>{
-    if(target&&target.isValid)playRageSounds(target)
-  },5000)
+  },250)
 }
 
-function attack(target){
+function applyEffects(){
+  if(!currentTarget?.username||!bot)return
   try{
-    bot.attack(target)
-  }catch(err){
-    console.error('❌ Attack error:',err.message)
-  }
-}
-
-function rageEffects(target){
-  try{
-    bot.chat(`/effect give ${target.username} minecraft:darkness 5 0 true`)
-    bot.chat(`/effect give ${target.username} minecraft:slowness 3 0 true`)
+    bot.chat(`/effect give ${currentTarget.username} minecraft:darkness 4 0 true`)
+    bot.chat(`/effect give ${currentTarget.username} minecraft:slowness 2 0 true`)
+    bot.chat(`/effect give ${currentTarget.username} minecraft:blindness 2 0 true`)
   }catch(err){
     console.error('❌ Rage effect error:',err.message)
   }
 }
 
-function playRageSounds(target){
+function playSound(){
+  if(!currentTarget?.username||!bot)return
   const sounds=[
     'minecraft:entity.warden.heartbeat',
     'minecraft:entity.warden.angry',
     'minecraft:entity.ghast.scream',
     'minecraft:entity.warden.sonic_boom'
   ]
-
   const sound=sounds[Math.floor(Math.random()*sounds.length)]
-
   try{
-    bot.chat(`/playsound ${sound} hostile ${target.username} ~ ~ ~ 3 1`)
+    bot.chat(`/playsound ${sound} hostile ${currentTarget.username} ~ ~ ~ 3 1`)
     console.log(`🔊 Rage sound: ${sound}`)
   }catch(err){
-    console.error('❌ Sound error:',err.message)
+    console.error('❌ Rage sound error:',err.message)
   }
 }
 
-function stopRage(){
+function stopRage(killed){
   clearInterval(rageTimer)
+  clearInterval(effectTimer)
   clearInterval(soundTimer)
   rageTimer=null
+  effectTimer=null
   soundTimer=null
-  console.log('🧠 Target forgotten')
+
+  if(currentTarget){
+    console.log(killed?`🧠 ${currentTarget.username} removed from target memory`:`🧠 Rage target lost`)
+  }
+
+  currentTarget=null
   forgetAttacker()
+
+  try{
+    if(bot?.pathfinder)bot.pathfinder.setGoal(null)
+  }catch(err){
+    console.error('❌ Rage stop error:',err.message)
+  }
 }
 
-module.exports={init,startRage,stopRage}
+module.exports={init,enterRage,stopRage}
