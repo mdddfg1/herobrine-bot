@@ -1,22 +1,35 @@
-const memory={
+const state={
   home:null,
-  attacker:null,
-  lastAttack:0,
   rage:false,
-  knownPlayers:{},
-  killedAttackers:{}
+  attacker:null,
+  lastAction:null,
+  lastActionAt:0,
+  busy:false,
+  started:false,
+  knownPlayers:{}
 }
 
-function setAttacker(player){
-  memory.attacker=player
-  memory.lastAttack=Date.now()
-  memory.rage=true
+function setHome(pos){
+  state.home={x:pos.x,y:pos.y,z:pos.z}
+}
+
+function setAttacker(entity){
+  state.rage=true
+  state.attacker=entity
 }
 
 function forgetAttacker(){
-  if(memory.attacker)memory.killedAttackers[memory.attacker]=Date.now()
-  memory.attacker=null
-  memory.rage=false
+  state.rage=false
+  state.attacker=null
 }
 
-module.exports={memory,setAttacker,forgetAttacker}
+function rememberPlayer(username){
+  state.knownPlayers[username]=Date.now()
+}
+
+function action(name){
+  state.lastAction=name
+  state.lastActionAt=Date.now()
+}
+
+module.exports={state,setHome,setAttacker,forgetAttacker,rememberPlayer,action}
