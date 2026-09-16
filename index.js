@@ -14,7 +14,7 @@ const botConfig = {
   username: 'Herobrine',
   offline: false,
   
-  profilesFolder: './msa-cache' // حفظ التوثيق محلياً لمنع تكرار طلب الرمز
+  profilesFolder: './mmsa_folder' // حفظ التوثيق محلياً لمنع تكرار طلب الرمز
 };
 
 let isAttempting = false;
