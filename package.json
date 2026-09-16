@@ -1,15 +1,14 @@
 {
   "name": "herobrine-bot",
   "version": "1.0.0",
-  "private": true,
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
+  "dependencies": {
+    "mineflayer": "^4.39.0"
+  },
   "engines": {
     "node": ">=22"
-  },
-  "dependencies": {
-    "mineflayer": "github:PrismarineJS/mineflayer"
   }
 }
